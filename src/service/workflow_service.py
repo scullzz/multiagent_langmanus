@@ -229,7 +229,7 @@ async def run_mix_agent_workflow(
     state = MixState(
         messages=messages,
         user_prompt=messages[-1].content,
-        category="simple",  # reflector потом перезапишет правильную category
+        category="simple",
         answers=[],
         current_idx=0,
         results=[],
@@ -242,22 +242,29 @@ async def run_mix_agent_workflow(
     last_answers_count = 0
     seen_summary_started = False
 
+    workflow_id = str(uuid.uuid4())
+
     async for event in mix_graph.astream_events(state, version="v2"):
         kind = event.get("event")
         data = event.get("data", {})
+        name = event.get("name")
+        metadata = event.get("metadata", {})
+        node = metadata.get("checkpoint_ns", "").split(":")[0]
+        run_id = str(event.get("run_id", ""))
 
-        output = data.get("output", {})
+        if kind == "on_chat_model_start":
+            yield {
+                "event": "start_of_llm",
+                "data": {"agent_name": node},
+            }
 
-        if hasattr(output, "update") and isinstance(output.update, dict) and "answers" in output.update:
-            answers = output.update["answers"]
-            if len(answers) > last_answers_count:
-                last_answers_count = len(answers)
-                yield {
-                    "event": "answers",
-                    "data": json.dumps([answers[-1]], ensure_ascii=False),
-                }
+        elif kind == "on_chat_model_end":
+            yield {
+                "event": "end_of_llm",
+                "data": {"agent_name": node},
+            }
 
-        if kind == "on_chat_model_stream":
+        elif kind == "on_chat_model_stream":
             seen_summary_started = True
             chunk = data.get("chunk")
             if chunk and chunk.content:
@@ -269,11 +276,41 @@ async def run_mix_agent_workflow(
                     }, ensure_ascii=False),
                 }
 
+        elif kind == "on_tool_start":
+            yield {
+                "event": "tool_call",
+                "data": {
+                    "tool_call_id": f"{workflow_id}_{node}_{name}_{run_id}",
+                    "tool_name": name,
+                    "tool_input": data.get("input"),
+                },
+            }
+
+        elif kind == "on_tool_end":
+            yield {
+                "event": "tool_call_result",
+                "data": {
+                    "tool_call_id": f"{workflow_id}_{node}_{name}_{run_id}",
+                    "tool_name": name,
+                    "tool_result": data["output"].content if data.get("output") else "",
+                },
+            }
+
+        output = data.get("output", {})
+        if hasattr(output, "update") and isinstance(output.update, dict) and "answers" in output.update:
+            answers = output.update["answers"]
+            if len(answers) > last_answers_count:
+                last_answers_count = len(answers)
+                yield {
+                    "event": "answers",
+                    "data": json.dumps([answers[-1]], ensure_ascii=False),
+                }
+
     if not seen_summary_started and last_answers_count > 0:
         yield {
             "event": "message",
             "data": json.dumps({
                 "message_id": "final_summary",
-                "delta": {"content": "\n\n".join(state["answers"])},
+                "delta": {"content": "\n\n".join(state.answers)},
             }, ensure_ascii=False),
         }
