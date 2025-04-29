@@ -8,9 +8,7 @@ from langgraph.prebuilt.chat_agent_executor import AgentState
 
 def get_prompt_template(prompt_name: str) -> str:
     template = open(os.path.join(os.path.dirname(__file__), f"{prompt_name}.md")).read()
-    # Escape curly braces using backslash
     template = template.replace("{", "{{").replace("}", "}}")
-    # Replace `<<VAR>>` with `{VAR}`
     template = re.sub(r"<<([^>>]+)>>", r"{\1}", template)
     return template
 

@@ -4,41 +4,35 @@ FastAPI application for LangManus.
 
 import json
 import logging
-from typing import Dict, List, Any, Optional, Union
+from typing import List, Optional, Union
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from sse_starlette.sse import EventSourceResponse
 import asyncio
-from typing import AsyncGenerator, Dict, List, Any
-from langchain_core.messages import HumanMessage, AIMessage
-from src.graph.types import MixState
+from typing import List
 
 from src.graph import build_graph, mix_agents_builder
 from src.config import TEAM_MEMBERS
 from src.service.workflow_service import run_agent_workflow, run_mix_agent_workflow
 
-# Configure logging
 logger = logging.getLogger(__name__)
 
-# Create FastAPI app
 app = FastAPI(
     title="LangManus API",
     description="API for LangManus LangGraph-based agent workflow",
     version="0.1.0",
 )
 
-# Add CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods
-    allow_headers=["*"],  # Allows all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
-# Create the graph
 graph = build_graph()
 mix_graph = mix_agents_builder()
 
@@ -158,12 +152,10 @@ async def mix_chat_endpoint(request: MixChatRequest, req: Request):
                 deep_thinking_mode=request.deep_thinking_mode,
                 search_before_planning=request.search_before_planning,
             ):
-                # Если клиент прервал соединение — останавливаемся
                 if await req.is_disconnected():
                     logger.info("Client disconnected, stopping stream")
                     break
 
-                # Иначе пересылаем клиенту
                 yield {
                     "event": ev["event"],
                     "data": ev["data"],
@@ -173,13 +165,11 @@ async def mix_chat_endpoint(request: MixChatRequest, req: Request):
             logger.info("Stream cancelled by client")
         except Exception as e:
             logger.exception("Error in mix_chat_endpoint")
-            # В случае ошибки шлем клиенту сообщение об ошибке и завершаем стрим
             yield {
                 "event": "error",
                 "data": json.dumps({"message": str(e)}),
             }
 
-    # Возвращаем SSE-ответ. sep="\n" даёт нормальные разделители
     return EventSourceResponse(
         event_generator(),
         media_type="text/event-stream",

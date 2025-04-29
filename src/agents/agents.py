@@ -11,7 +11,6 @@ from src.tools import (
 from .llm import get_llm_by_type
 from src.config.agents import AGENT_LLM_MAP
 
-# Create agents using configured LLM types
 research_agent = create_react_agent(
     get_llm_by_type(AGENT_LLM_MAP["researcher"]),
     tools=[tavily_tool, crawl_tool],

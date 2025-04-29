@@ -248,7 +248,6 @@ async def run_mix_agent_workflow(
 
         output = data.get("output", {})
 
-        # 1) Ловим answers
         if hasattr(output, "update") and isinstance(output.update, dict) and "answers" in output.update:
             answers = output.update["answers"]
             if len(answers) > last_answers_count:
@@ -258,7 +257,6 @@ async def run_mix_agent_workflow(
                     "data": json.dumps([answers[-1]], ensure_ascii=False),
                 }
 
-        # 2) Стримим summary
         if kind == "on_chat_model_stream":
             seen_summary_started = True
             chunk = data.get("chunk")
@@ -271,9 +269,6 @@ async def run_mix_agent_workflow(
                     }, ensure_ascii=False),
                 }
 
-
-
-    # 3) Страховка: если вдруг summary так и не пошёл
     if not seen_summary_started and last_answers_count > 0:
         yield {
             "event": "message",

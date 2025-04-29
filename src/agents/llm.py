@@ -32,13 +32,12 @@ def create_openai_llm(
     """
     Create a ChatOpenAI instance with the specified configuration
     """
-    # Only include base_url in the arguments if it's not None or empty
     llm_kwargs = {"model": model, "temperature": temperature, **kwargs}
 
-    if base_url:  # This will handle None or empty string
+    if base_url:
         llm_kwargs["base_url"] = base_url
 
-    if api_key:  # This will handle None or empty string
+    if api_key:
         llm_kwargs["api_key"] = api_key
 
     return ChatOpenAI(**llm_kwargs)
@@ -54,19 +53,16 @@ def create_deepseek_llm(
     """
     Create a ChatDeepSeek instance with the specified configuration
     """
-    # Only include base_url in the arguments if it's not None or empty
     llm_kwargs = {"model": model, "temperature": temperature, **kwargs}
 
-    if base_url:  # This will handle None or empty string
+    if base_url:
         llm_kwargs["api_base"] = base_url
 
-    if api_key:  # This will handle None or empty string
+    if api_key:
         llm_kwargs["api_key"] = api_key
 
     return ChatDeepSeek(**llm_kwargs)
 
-
-# Cache for LLM instances
 _llm_cache: dict[LLMType, ChatOpenAI | ChatDeepSeek] = {}
 
 
@@ -114,7 +110,6 @@ def get_llm_by_type(llm_type: LLMType) -> ChatOpenAI | ChatDeepSeek:
     return llm
 
 
-# Initialize LLMs for different purposes - now these will be cached
 reasoning_llm = get_llm_by_type("reasoning")
 basic_llm = get_llm_by_type("basic")
 vl_llm = get_llm_by_type("web")
