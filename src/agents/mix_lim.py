@@ -41,4 +41,7 @@ def pick_llm(cat: str) -> List[BaseChatModel]:
     return [get_llm(alias) for alias in MODELS_BY_CAT[cat]]
 
 reflector_llm: BaseChatModel = get_llm("reflector_model")
+
+thinking_llm: BaseChatModel = get_llm("thinking_model")
+
 summary_llm:   BaseChatModel = get_llm("summary_model")

@@ -21,6 +21,7 @@ MODELS_BY_CAT: dict[str, list[str]] = {
     "coding":    ["gem_pro_T", "sonnet_T", "gpt4o_mini_high"],
     "reflector": ["reflector_model"], 
     "summary":   ["summary_model"], 
+    "thinking":  ["thinking_model"],
 }
 
 LLM_ENDPOINTS: dict[str, dict] = {
@@ -38,6 +39,8 @@ LLM_ENDPOINTS: dict[str, dict] = {
     "gpt4o_mini_high": {"model": "openai/o4-mini-high", "base_url": BASIC_BASE_URL, "api_key": BASIC_API_KEY},
     # ------- reflector ----
     "reflector_model": {"model": "google/gemini-2.0-flash-001", "base_url": BASIC_BASE_URL, "api_key": BASIC_API_KEY},
+    # ------- thinking -----
+    "thinking_model":  {"model": "google/gemini-2.0-flash-001", "base_url": BASIC_BASE_URL, "api_key": BASIC_API_KEY},
     # ------- summary ------
     "summary_model":   {"model": "google/gemini-2.0-flash-001", "base_url": BASIC_BASE_URL, "api_key": BASIC_API_KEY},
 }

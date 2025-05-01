@@ -10,6 +10,7 @@ from src.agents.mix_agents import (
     complex_agent,
     simple_agent,
     reflector_agent,
+    thinking_agent,
     summary_agent,
 )
 from src.prompts.template import apply_prompt_template
@@ -17,7 +18,6 @@ from src.prompts.template import apply_prompt_template
 logger = logging.getLogger(__name__)
 
 def clean_json_string(text: str) -> str:
-    """Удаляет ```json ... ``` обертку из текста, если есть"""
     return re.sub(r"^```(?:json)?\s*([\s\S]*?)\s*```$", r"\1", text.strip())
 
 def reflector_node(state: dict) -> Command[Literal["simple", "complex", "coding"]]:
@@ -36,8 +36,6 @@ def reflector_node(state: dict) -> Command[Literal["simple", "complex", "coding"
         category = json.loads(cleaned_reply)["category"]
     except Exception as e:
         raise ValueError(f"reflector_node: cannot parse category → {e}") from e
-
-    logger.info("reflector_node: chosen category = %r", category)
 
     goto = {
         "simple": "simple",
@@ -62,7 +60,6 @@ def simple_node(state: dict) -> Command[Literal["summary"]]:
     messages = apply_prompt_template("simple_agent", {"messages": [HumanMessage(content=user_prompt)]})
 
     result = simple_agent.invoke({"messages": messages})
-    logger.info("simple_node: result = %r", result.content)
 
     answers = state.get("answers", [])
     answers.append(result.content)
@@ -71,7 +68,7 @@ def simple_node(state: dict) -> Command[Literal["summary"]]:
         update={
             "answers": answers
         },
-        goto="summary",
+        goto="thinking",
     )
 
 def complex_node(state: dict) -> Command[Literal["summary"]]:
@@ -81,7 +78,6 @@ def complex_node(state: dict) -> Command[Literal["summary"]]:
     messages = apply_prompt_template("complex_agent", {"messages": [HumanMessage(content=user_prompt)]})
 
     result = complex_agent.invoke({"messages": messages})
-    logger.info("complex_node: result = %r", result.content)
 
     answers = state.get("answers", [])
     answers.append(result.content)
@@ -90,7 +86,7 @@ def complex_node(state: dict) -> Command[Literal["summary"]]:
         update={
             "answers": answers
         },
-        goto="summary",
+        goto="thinking",
     )
 
 def coding_node(state: dict) -> Command[Literal["summary"]]:
@@ -100,7 +96,6 @@ def coding_node(state: dict) -> Command[Literal["summary"]]:
     messages = apply_prompt_template("coding_agent", {"messages": [HumanMessage(content=user_prompt)]})
 
     result = coding_agent.invoke({"messages": messages})
-    logger.info("coding_node: result = %r", result.content)
 
     answers = state.get("answers", [])
     answers.append(result.content)
@@ -109,8 +104,29 @@ def coding_node(state: dict) -> Command[Literal["summary"]]:
         update={
             "answers": answers
         },
+        goto="thinking",
+    )
+
+def thinking_node(state: dict) -> Command[Literal["summary"]]:
+    logger.info("▶ thinking_node started")
+
+    full_text = "\n\n".join(state.get("answers", []))
+
+    result = thinking_agent.invoke({"messages": [HumanMessage(content=full_text)]})
+
+    final_text = result["messages"][-1].content
+    logger.info("Thinking agent produced final text: %s", final_text)
+
+    new_history = state["messages"] + [HumanMessage(content=final_text)]
+
+    return Command(
+        update={
+            "messages": new_history
+        },
         goto="summary",
     )
+
+
 
 def summary_node(state: dict) -> Command:
     logger.info("▶ summary_node started")
@@ -121,7 +137,6 @@ def summary_node(state: dict) -> Command:
     result = summary_agent.invoke({"messages": [HumanMessage(content=full_text)]})
 
     final_text = result["messages"][-1].content
-    logger.info("summary_node: FINAL summarized text\n%r", final_text)
 
     new_history = state["messages"] + [HumanMessage(content=final_text)]
 

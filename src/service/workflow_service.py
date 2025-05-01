@@ -53,24 +53,18 @@ async def run_agent_workflow(
     if debug:
         enable_debug_logging()
 
-    logger.info(f"Starting workflow with user input: {user_input_messages}")
-
     workflow_id = str(uuid.uuid4())
 
     streaming_llm_agents = [*TEAM_MEMBERS, "planner", "coordinator"]
 
-    # Reset coordinator cache at the start of each workflow
     global coordinator_cache
     coordinator_cache = []
     global is_handoff_case
     is_handoff_case = False
 
-    # TODO: extract message content from object, specifically for on_chat_model_stream
     async for event in graph.astream_events(
         {
-            # Constants
             "TEAM_MEMBERS": TEAM_MEMBERS,
-            # Runtime Variables
             "messages": user_input_messages,
             "deep_thinking_mode": deep_thinking_mode,
             "search_before_planning": search_before_planning,
@@ -128,7 +122,6 @@ async def run_agent_workflow(
             content = data["chunk"].content
             if content is None or content == "":
                 if not data["chunk"].additional_kwargs.get("reasoning_content"):
-                    # Skip empty messages
                     continue
                 ydata = {
                     "event": "message",
@@ -142,7 +135,6 @@ async def run_agent_workflow(
                     },
                 }
             else:
-                # Check if the message is from the coordinator
                 if node == "coordinator":
                     if len(coordinator_cache) < MAX_CACHE_SIZE:
                         coordinator_cache.append(content)
@@ -152,7 +144,6 @@ async def run_agent_workflow(
                             continue
                         if len(coordinator_cache) < MAX_CACHE_SIZE:
                             continue
-                        # Send the cached message
                         ydata = {
                             "event": "message",
                             "data": {
@@ -161,7 +152,6 @@ async def run_agent_workflow(
                             },
                         }
                     elif not is_handoff_case:
-                        # For other agents, send the message directly
                         ydata = {
                             "event": "message",
                             "data": {
@@ -170,7 +160,6 @@ async def run_agent_workflow(
                             },
                         }
                 else:
-                    # For other agents, send the message directly
                     ydata = {
                         "event": "message",
                         "data": {
@@ -295,6 +284,7 @@ async def run_mix_agent_workflow(
                     "tool_result": data["output"].content if data.get("output") else "",
                 },
             }
+
 
         output = data.get("output", {})
         if hasattr(output, "update") and isinstance(output.update, dict) and "answers" in output.update:
